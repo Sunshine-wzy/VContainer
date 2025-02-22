@@ -191,6 +191,15 @@ namespace VContainer.Unity
                 throw new VContainerException(attributeType, $"Duplicate attribute injector: {attributeType.FullName}");
             }
         }
+
+        public void RegisterAttributeInjector<TAttribute>(Action<TAttribute, MethodInfo> injector)
+            where TAttribute : Attribute
+        {
+            RegisterAttributeInjector(typeof(TAttribute), (attribute, method) =>
+            {
+                injector.Invoke((TAttribute) attribute, method);
+            });
+        }
         
         public bool UnregisterAttributeInjector(Type attributeType) => attributeInjectors.Remove(attributeType);
 
