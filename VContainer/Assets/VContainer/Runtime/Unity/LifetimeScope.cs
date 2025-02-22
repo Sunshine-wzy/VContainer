@@ -229,7 +229,6 @@ namespace VContainer.Unity
                         Parent.Build();
                 }
 
-                ApplyAttributeInjectors();
                 // ReSharper disable once PossibleNullReferenceException
                 Parent.Container.CreateScope(builder =>
                 {
@@ -237,6 +236,8 @@ namespace VContainer.Unity
                     builder.ApplicationOrigin = this;
                     builder.Diagnostics = VContainerSettings.DiagnosticsEnabled ? DiagnositcsContext.GetCollector(scopeName) : null;
                     InstallTo(builder);
+                    
+                    ApplyAttributeInjectors();
                 });
             }
             else
