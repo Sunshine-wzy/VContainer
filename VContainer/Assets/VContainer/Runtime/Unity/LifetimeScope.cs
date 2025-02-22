@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using VContainer.Diagnostics;
@@ -131,6 +132,7 @@ namespace VContainer.Unity
                               VContainerSettings.Instance.IsRootLifetimeScopeInstance(this);
 
         readonly List<IInstaller> localExtraInstallers = new List<IInstaller>();
+        readonly Dictionary<Type, Action<Attribute, MethodInfo>> attributeInjectors = new();
 
         protected virtual void Awake()
         {
@@ -182,6 +184,38 @@ namespace VContainer.Unity
             }
         }
 
+        public void RegisterAttributeInjector(Type attributeType, Action<Attribute, MethodInfo> injector)
+        {
+            if (!attributeInjectors.TryAdd(attributeType, injector))
+            {
+                throw new VContainerException(attributeType, $"Duplicate attribute injector: {attributeType.FullName}");
+            }
+        }
+        
+        public bool UnregisterAttributeInjector(Type attributeType) => attributeInjectors.Remove(attributeType);
+
+        private void ApplyAttributeInjectors()
+        {
+            lock (SyncRoot)
+            {
+                foreach (var (attributeType, injector) in attributeInjectors)
+                {
+                    InjectorCache.RegisterAttributeInjector(attributeType, injector);
+                }
+            }
+        }
+
+        private void RemoveAttributeInjectors()
+        {
+            lock (SyncRoot)
+            {
+                foreach (var (attributeType, _) in attributeInjectors)
+                {
+                    InjectorCache.UnregisterAttributeInjector(attributeType);
+                }
+            }
+        }
+
         public void Build()
         {
             if (Parent == null)
@@ -195,6 +229,7 @@ namespace VContainer.Unity
                         Parent.Build();
                 }
 
+                ApplyAttributeInjectors();
                 // ReSharper disable once PossibleNullReferenceException
                 Parent.Container.CreateScope(builder =>
                 {
@@ -213,8 +248,11 @@ namespace VContainer.Unity
                 };
                 builder.RegisterBuildCallback(SetContainer);
                 InstallTo(builder);
+                
+                ApplyAttributeInjectors();
                 builder.Build();
             }
+            RemoveAttributeInjectors();
 
             AwakeWaitingChildren(this);
         }

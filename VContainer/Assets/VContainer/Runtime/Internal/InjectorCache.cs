@@ -7,7 +7,18 @@ namespace VContainer.Internal
     public static class InjectorCache
     {
         static readonly ConcurrentDictionary<Type, IInjector> Injectors = new ConcurrentDictionary<Type, IInjector>();
+        internal static readonly ConcurrentDictionary<Type, Action<Attribute, MethodInfo>> AttributeInjectors = new();
 
+        public static void RegisterAttributeInjector(Type attributeType, Action<Attribute, MethodInfo> injector)
+        {
+            if (!AttributeInjectors.TryAdd(attributeType, injector))
+            {
+                throw new VContainerException(attributeType, $"Duplicate attribute injector: {attributeType.FullName}");
+            }
+        }
+
+        public static bool UnregisterAttributeInjector(Type attributeType) => AttributeInjectors.TryRemove(attributeType, out _);
+        
         public static IInjector GetOrBuild(Type type)
         {
             return Injectors.GetOrAdd(type, key =>

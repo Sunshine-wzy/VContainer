@@ -233,6 +233,16 @@ namespace VContainer.Internal
 
                         injectMethods.Add(new InjectMethodInfo(methodInfo));
                     }
+                    else if (!InjectorCache.AttributeInjectors.IsEmpty)
+                    {
+                        foreach (Attribute attribute in methodInfo.GetCustomAttributes(false))
+                        {
+                            if (InjectorCache.AttributeInjectors.TryGetValue(attribute.GetType(), out var attributeInjector))
+                            {
+                                attributeInjector.Invoke(attribute, methodInfo);
+                            }
+                        }
+                    }
                 }
                 EndMethod:
 
