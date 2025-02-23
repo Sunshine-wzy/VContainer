@@ -132,7 +132,7 @@ namespace VContainer.Unity
                               VContainerSettings.Instance.IsRootLifetimeScopeInstance(this);
 
         readonly List<IInstaller> localExtraInstallers = new List<IInstaller>();
-        readonly Dictionary<Type, Action<Attribute, MethodInfo>> attributeInjectors = new();
+        readonly Dictionary<Type, Action<AttributeInjector<Attribute>>> attributeInjectors = new();
 
         protected virtual void Awake()
         {
@@ -184,7 +184,7 @@ namespace VContainer.Unity
             }
         }
 
-        public void RegisterAttributeInjector(Type attributeType, Action<Attribute, MethodInfo> injector)
+        public void RegisterAttributeInjector(Type attributeType, Action<AttributeInjector<Attribute>> injector)
         {
             if (!attributeInjectors.TryAdd(attributeType, injector))
             {
@@ -192,12 +192,12 @@ namespace VContainer.Unity
             }
         }
 
-        public void RegisterAttributeInjector<TAttribute>(Action<TAttribute, MethodInfo> injector)
+        public void RegisterAttributeInjector<TAttribute>(Action<AttributeInjector<TAttribute>> injector)
             where TAttribute : Attribute
         {
-            RegisterAttributeInjector(typeof(TAttribute), (attribute, method) =>
+            RegisterAttributeInjector(typeof(TAttribute), attributeInjector =>
             {
-                injector.Invoke((TAttribute) attribute, method);
+                injector.Invoke(new AttributeInjector<TAttribute>((TAttribute) attributeInjector.Attribute, attributeInjector.ClassType, attributeInjector.Method));
             });
         }
         

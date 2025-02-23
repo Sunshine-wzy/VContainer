@@ -204,6 +204,7 @@ namespace VContainer.Internal
                     throw new VContainerException(type, $"Type does not found injectable constructor, type: {type.Name}");
             }
 
+            var processedInjectMethods = new HashSet<MethodBase>();
             var injectMethods = default(List<InjectMethodInfo>);
             var injectFields = default(List<FieldInfo>);
             var injectProperties = default(List<PropertyInfo>);
@@ -215,36 +216,26 @@ namespace VContainer.Internal
                 var methods = type.GetMethods(bindingFlags);
                 foreach (var methodInfo in methods)
                 {
-                    if (methodInfo.IsDefined(typeof(InjectAttribute), false))
-                    {
-                        if (injectMethods == null)
-                        {
-                            injectMethods = new List<InjectMethodInfo>();
-                        }
-                        else
-                        {
-                            // Skip if already exists
-                            foreach (var x in injectMethods)
-                            {
-                                if (x.MethodInfo.GetBaseDefinition() == methodInfo.GetBaseDefinition())
-                                    goto EndMethod;
-                            }
-                        }
-
-                        injectMethods.Add(new InjectMethodInfo(methodInfo));
-                    }
-                    else if (!InjectorCache.AttributeInjectors.IsEmpty)
+                    if (!InjectorCache.AttributeInjectors.IsEmpty)
                     {
                         foreach (Attribute attribute in methodInfo.GetCustomAttributes(false))
                         {
                             if (InjectorCache.AttributeInjectors.TryGetValue(attribute.GetType(), out var attributeInjector))
                             {
-                                attributeInjector.Invoke(attribute, methodInfo);
+                                attributeInjector.Invoke(new AttributeInjector<Attribute>(attribute, type, methodInfo));
                             }
                         }
                     }
+                    
+                    if (methodInfo.IsDefined(typeof(InjectAttribute), false))
+                    {
+                        if (!processedInjectMethods.Add(methodInfo.GetBaseDefinition()))
+                            continue;
+                        
+                        injectMethods ??= new List<InjectMethodInfo>();
+                        injectMethods.Add(new InjectMethodInfo(methodInfo));
+                    }
                 }
-                EndMethod:
 
                 // Fields, [Inject] Only
                 var fields = type.GetFields(bindingFlags);

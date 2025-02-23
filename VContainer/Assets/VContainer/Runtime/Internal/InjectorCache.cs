@@ -7,9 +7,9 @@ namespace VContainer.Internal
     public static class InjectorCache
     {
         static readonly ConcurrentDictionary<Type, IInjector> Injectors = new ConcurrentDictionary<Type, IInjector>();
-        internal static readonly ConcurrentDictionary<Type, Action<Attribute, MethodInfo>> AttributeInjectors = new();
+        internal static readonly ConcurrentDictionary<Type, Action<AttributeInjector<Attribute>>> AttributeInjectors = new();
 
-        public static void RegisterAttributeInjector(Type attributeType, Action<Attribute, MethodInfo> injector)
+        public static void RegisterAttributeInjector(Type attributeType, Action<AttributeInjector<Attribute>> injector)
         {
             if (!AttributeInjectors.TryAdd(attributeType, injector))
             {
