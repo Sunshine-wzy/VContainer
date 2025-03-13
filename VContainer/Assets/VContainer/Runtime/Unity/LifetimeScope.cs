@@ -111,7 +111,7 @@ namespace VContainer.Unity
                     var found = gameObject.GetComponentInChildren(type) as LifetimeScope;
                     if (found != null)
                         return found;
-                }
+                } 
             }
             return null;
         }
@@ -133,6 +133,7 @@ namespace VContainer.Unity
 
         readonly List<IInstaller> localExtraInstallers = new List<IInstaller>();
         readonly Dictionary<Type, Action<AttributeInjector<Attribute>>> attributeInjectors = new();
+        readonly Dictionary<Type, List<AttributeInjector<Attribute>>> attributeInjectorInstances = new();
 
         protected virtual void Awake()
         {
@@ -186,7 +187,16 @@ namespace VContainer.Unity
 
         public void RegisterAttributeInjector(Type attributeType, Action<AttributeInjector<Attribute>> injector)
         {
-            if (!attributeInjectors.TryAdd(attributeType, injector))
+            if (!attributeInjectors.TryAdd(attributeType, attributeInjector =>
+                {
+                    if (!attributeInjectorInstances.TryGetValue(attributeType, out var instances))
+                    {
+                        instances = new List<AttributeInjector<Attribute>>();
+                        attributeInjectorInstances[attributeType] = instances;
+                    }
+                    instances.Add(attributeInjector);
+                    injector.Invoke(attributeInjector);
+                }))
             {
                 throw new VContainerException(attributeType, $"Duplicate attribute injector: {attributeType.FullName}");
             }
@@ -195,13 +205,34 @@ namespace VContainer.Unity
         public void RegisterAttributeInjector<TAttribute>(Action<AttributeInjector<TAttribute>> injector)
             where TAttribute : Attribute
         {
-            RegisterAttributeInjector(typeof(TAttribute), attributeInjector =>
+            var attributeType = typeof(TAttribute);
+            if (!attributeInjectors.TryAdd(attributeType, attributeInjector =>
+                {
+                    if (!attributeInjectorInstances.TryGetValue(attributeType, out var instances))
+                    {
+                        instances = new List<AttributeInjector<Attribute>>();
+                        attributeInjectorInstances[attributeType] = instances;
+                    }
+                    instances.Add(attributeInjector);
+                    injector.Invoke(new AttributeInjector<TAttribute>((TAttribute) attributeInjector.Attribute, attributeInjector.ClassType, attributeInjector.Method));
+                }))
             {
-                injector.Invoke(new AttributeInjector<TAttribute>((TAttribute) attributeInjector.Attribute, attributeInjector.ClassType, attributeInjector.Method));
-            });
+                throw new VContainerException(attributeType, $"Duplicate attribute injector: {attributeType.FullName}");
+            }
         }
         
         public bool UnregisterAttributeInjector(Type attributeType) => attributeInjectors.Remove(attributeType);
+
+        public void RemoveAttributeInjectorCache()
+        {
+            foreach (var injectors in attributeInjectorInstances.Values)
+            {
+                foreach (var injector in injectors)
+                {
+                    InjectorCache.RemoveInjectorCache(injector.ClassType);
+                }
+            }
+        }
 
         private void ApplyAttributeInjectors()
         {

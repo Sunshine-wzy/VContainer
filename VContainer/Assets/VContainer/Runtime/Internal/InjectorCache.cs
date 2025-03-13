@@ -18,6 +18,8 @@ namespace VContainer.Internal
         }
 
         public static bool UnregisterAttributeInjector(Type attributeType) => AttributeInjectors.TryRemove(attributeType, out _);
+
+        public static bool RemoveInjectorCache(Type type) => Injectors.TryRemove(type, out _);
         
         public static IInjector GetOrBuild(Type type)
         {
