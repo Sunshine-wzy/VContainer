@@ -154,6 +154,8 @@ namespace VContainer.Internal
     static class TypeAnalyzer
     {
         public static InjectTypeInfo AnalyzeWithCache(Type type) => Cache.GetOrAdd(type, AnalyzeFunc);
+        
+        public static bool RemoveCache(Type type) => Cache.TryRemove(type, out _);
 
         static readonly ConcurrentDictionary<Type, InjectTypeInfo> Cache = new ConcurrentDictionary<Type, InjectTypeInfo>();
 
