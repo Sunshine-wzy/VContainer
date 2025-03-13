@@ -176,6 +176,7 @@ namespace VContainer.Unity
 
         public void DisposeCore()
         {
+            RemoveAttributeInjectorCache();
             Container?.Dispose();
             Container = null;
             CancelAwake(this);
